@@ -41,7 +41,7 @@ DEFAULT_TOLERANCE = 1
 plt.close()
 
 #Direct input 
-plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
 #Options
 params = {'text.usetex' : True,
           'font.family' : 'lmodern',
@@ -75,6 +75,7 @@ for i in range(DEFAULT_ITERATIONS):
         if DEFAULT_SAVE:
             mlab.savefig(str(i)+"_Samples.png")
         mlab.show()
+        mlab.close(all=True)
 
     # obtain energies at samples
     energies = np.expand_dims(jax.vmap(mb.E)(final_3D), axis=1)
@@ -125,7 +126,6 @@ for i in range(DEFAULT_ITERATIONS):
                                                   learned_potential.lucia_hessian_eq1,
                                                   learned_potential.lucia_hessian_eq2],
                                      maxiter = 150,
-                                     max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6,#(alternate)
                                      verbose = 1,
                                      tolerance = 1,
                                      h = 5)
@@ -187,6 +187,7 @@ for i in range(DEFAULT_ITERATIONS):
         if DEFAULT_SAVE:
             mlab.savefig(str(i)+"_3D.png")
         mlab.show()
+        mlab.close(all=True)
 
     initial_3D = gradient_extremal_3D[-2]
 

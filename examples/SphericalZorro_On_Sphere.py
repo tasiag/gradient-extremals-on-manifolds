@@ -18,7 +18,7 @@ from gradient_extremals_on_manifolds.Continuation import Continuation
 plt.close()
 
 #Direct input 
-plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
 #Options
 params = {'text.usetex' : True,
           'font.size' : 18

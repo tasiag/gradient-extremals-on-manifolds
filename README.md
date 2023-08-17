@@ -1,6 +1,7 @@
-# Source code for "locating saddle points with Gradient Extremals on manifolds defined by point clouds"
+# Source code for "locating saddle points with gradient extremals on manifolds defined by point clouds"
 
 ## Introduction
+Associated code for the paper LINK_TO_PAPER.
 
 ## Installation
 ```sh
@@ -12,11 +13,11 @@ pip install .
 ### Zorro potential on a sphere
 
 ```sh
-python examples/SphericalZorro_On_Sphere.py
+ipython examples/SphericalZorro_On_Sphere.py
 ```
 
 ### Müller-Brown potential on a sphere via sampling
 
 ```sh
-python examples/SphericalMB_Sampling.py
+ipython examples/SphericalMB_Sampling.py
 ```
