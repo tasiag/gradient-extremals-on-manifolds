@@ -17,6 +17,14 @@ from gradient_extremals_on_manifolds.Continuation import Continuation
 
 plt.close()
 
+#Direct input 
+plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+#Options
+params = {'text.usetex' : True,
+          'font.size' : 18
+          }
+plt.rcParams.update(params) 
+
 zorro = SphericalZorro()
 
 fixed_points = zorro.get_fixed_points(manifold=True)
@@ -57,7 +65,7 @@ gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], init
 gradient_extremal_right.start()
 gradient_extremal_rightpoints = gradient_extremal_right.getPoints()
 
-zorro.plot_color_mesh(colorbarTitle=r'$\psi*E$')
+zorro.plot_color_mesh(colorbarTitle=r'$Z:=\psi*E$')
 plt.plot(list(zip(*gradient_extremal_points))[0],
          list(zip(*gradient_extremal_points))[1], color="orange")
 
@@ -66,9 +74,9 @@ plt.plot(list(zip(*gradient_extremal_rightpoints))[0],
 
 ## 2D plot
 plt.scatter(x=fixed_points_2D[[0,2,4],0], y=fixed_points_2D[[0,2,4],1],
-            color="Yellow", marker="s", zorder=15)
+            color="Yellow", zorder=15)
 plt.scatter(x=fixed_points_2D[[1,3],0], y=fixed_points_2D[[1,3],1],
-            color="Yellow", marker="^", s=60, zorder=20)
+            color="Yellow", marker="s", s=40, zorder=20)
 plt.xlabel(r"$u$")
 plt.ylabel(r"$v$")
 

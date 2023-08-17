@@ -59,7 +59,6 @@ gradient_extremal_3D = jax.vmap(mb.psi)(jnp.array(gradient_extremal_points)[:,0:
 
 ## plotting
 plot_spherical_potential(mb.E)
-jax.debug.print("{x}", x=fixed_points)
 plot_points3d(gradient_extremal_3D, s=[ 1 for i in range(len(gradient_extremal_points))],
               color=(1.0, 0.65, 0.0))
 plot_points3d(fixed_points[[0,2,4],:], s=[ 1 for i in range(len(fixed_points[[0,2,4],:]))],

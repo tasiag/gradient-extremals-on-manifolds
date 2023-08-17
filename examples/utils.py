@@ -2,8 +2,11 @@ from typing import Callable, Tuple
 
 import jax
 import jax.numpy as jnp
+import logging
 
 from mayavi import mlab
+
+import sys
 
 DEFAULT_MESH_SIZE: int = 100
 DEFAULT_AZIMUTH: int = 60
@@ -54,3 +57,25 @@ def plot_lines3d(points: jnp.ndarray,
         mlab.plot3d(points[:, 0], points[:, 1], points[:, 2],
                     representation=representation, color=color,#map='RdBu',
                     line_width=line_width, tube_radius = 0.005)
+
+def setup_log(name, verbose):
+    logger = logging.getLogger(name)
+    logger.propagate = False
+    logger.setLevel(logging.DEBUG)
+
+    log_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    log_handler = logging.FileHandler(f"./{name}.log")
+    if verbose:
+        log_handler.setLevel(logging.DEBUG)
+    else:
+        log_handler.setLevel(logging.INFO)
+    log_handler.setFormatter(log_format)
+
+    stream_handler = logging.StreamHandler(stream=sys.stdout)
+    stream_handler.setLevel(logging.WARNING)
+    stream_handler.setFormatter(log_format)
+
+    logger.addHandler(log_handler)
+    logger.addHandler(stream_handler)
+    return logger 
+

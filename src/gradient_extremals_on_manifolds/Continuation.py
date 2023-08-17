@@ -2,23 +2,49 @@
 # -*- coding: utf-8 -*-
 
 from functools import partial
+
 import jax
 from jax import jit
 import jax.numpy as jnp
 from jax.scipy.linalg import svd
 
+import logging
+import sys
+
 
 class Continuation:
+
+    def setup_log(self, name, verbose):
+        logger = logging.getLogger(name)
+        logger.propagate = False
+        logger.setLevel(logging.DEBUG)
+
+        log_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        log_handler = logging.FileHandler(f"./{name}.log")
+        if verbose:
+            log_handler.setLevel(logging.DEBUG)
+        else:
+            log_handler.setLevel(logging.INFO)
+        log_handler.setFormatter(log_format)
+
+        stream_handler = logging.StreamHandler(stream=sys.stdout)
+        stream_handler.setLevel(logging.WARNING)
+        stream_handler.setFormatter(log_format)
+
+        logger.addHandler(log_handler)
+        logger.addHandler(stream_handler)
+        return logger 
 
     def __init__(self,
                  initial_point,
                  functions, # array of functions
                  maxiter = 100,
                  h = 0.05,
-                 verbose = 0, #1, #2, the larger the more error messages
+                 verbose = 0, #0 prints info only, 1 prints debug level
                  tolerance = 0.001,
                  max_cond = lambda x:0):
 
+        self.logger = self.setup_log("continuation", verbose)
         self.functions = functions
         self.function = functions[0]
         self.maxiter = maxiter
@@ -40,35 +66,29 @@ class Continuation:
     def F_jacobian(self, z, z0, tan):
         main_equations = jnp.array([jax.jacobian(function)(z) for function in self.functions])
         jacob = jnp.append(main_equations, jnp.expand_dims(tan, axis=0), axis=0)
-        if self.verbose > 2: jax.debug.print("jacobian_F: {x}", x=jacob)
         return jacob
 
     # corrector step
     def newton_raphson(self, z, z0, maxiter, tan):
-        if self.verbose > 1: print("iter: 0, starting z:", z)
         for i in range(maxiter):
             soln = self.F(z, z0, tan)
-            if self.verbose > 1:
-                print("Current solution: ", soln, " Norm: ", jnp.linalg.norm(soln))
+            self.logger.info("Newton-Raphson | iter: " + str(i) + \
+                " | z: " + str(z)+ "soln: " + str(soln) + \
+                " | norm: " + str(jnp.linalg.norm(soln)))
             if jnp.linalg.norm(soln) < self.tolerance:
-                if self.verbose > 1: print("Found value: ", z)
+                self.logger.debug("Found value: " + str(z))
                 return z
-            if self.verbose > 2:
-                print("Grad at : ", z, " is ", jax.grad(self.function)(z),
-                      " & the Jacobian: ", (self.F_jacobian(z, z0, tan)))
+            self.logger.debug("Newton-Raphson | Grad at " + str(z) + " is " + \
+                str(jax.grad(self.function)(z)) + " | Jacobian: " + \
+                str(self.F_jacobian(z, z0, tan)))
             z = z + jnp.linalg.solve(self.F_jacobian(z, z0, tan), -self.F(z, z0, tan))
-            if self.verbose > 1: print("iter: %d, new:" % (i+1), z)
-        if self.verbose > 2:
-            print("Z: ", z, " and Norm of last solution when correcting: ", jnp.linalg.norm(soln))
-            z = z + jnp.linalg.solve(self.F_jacobian(z, z0, tan), -self.F(z, z0, tan))
-            soln = self.F(z, z0, tan)
-            print("z: ", z, "Check to see if norm is getting smaller: ", jnp.linalg.norm(soln))
-            print("Max iterations reached. No solution found.")
-        if self.verbose > 0:
-            print("Newton_Raphson did not converge. Norm of solution: ", jnp.linalg.norm(soln))
-            print("The current zeros of the equations: ", soln)
-            print("Which is given by z = ", z)
-            print("With this jacobian: ", self.F_jacobian(z, z0, tan))
+        self.logger.debug("Newton-Raphson | Max iterations reached. No solution found.")
+        self.logger.debug("Newton-Raphson | z: " + str(z) + "norm: " + str(jnp.linalg.norm(soln)))
+        self.logger.info("Newton-Raphson |" + " Newton_Raphson did not converge. Norm of solution: " + \
+                         str(jnp.linalg.norm(soln)))
+        self.logger.info("Newton-Raphson | The current zeros of the equations: " + str(soln))
+        self.logger.info("Newton-Raphson | Which is given by z = " + str(z))
+        self.logger.info("Newton-Raphson | With this jacobian: " + str(self.F_jacobian(z, z0, tan)))
         return z
 
     def nullspace(self, A, atol=1e-13, rtol=0):
@@ -83,26 +103,23 @@ class Continuation:
     # predictor step
     def compute_step(self, z0, old_tangent):
         tan = self.tangent(z0) # obtain tangent to original point
-        if self.verbose > 1: print("tangent: ", tan)
+        self.logger.info("tangent: " + str(tan))
         if jnp.dot(old_tangent, tan) < 0: # adaptively reverses direction
             tan = -tan
-            if self.verbose > 1: print("Reversing sign of tangent")
+            self.logger.info("Predictor | Reversing sign of tangent")
 
         for i in range(20):
             z_new = z0 + self.h*tan # predict new step along tangent
-            if self.verbose > 1:
-                print("Predicted: ", z_new)
-                print("post prediction: ", z_new)
+            self.logger.info("Predictor | Predicted Solution: " + str(z_new))
             z_new = self.newton_raphson(z_new, z0, 10, tan)
             if z_new is not None:
                 if self.h < self.h_max:
                     self.h = min(1.2 * self.h, self.h_max)
                 break
             self.h = 0.5 * self.h
-            if self.verbose > 0: print("Adaptive step sizing! h is now: ", self.h)
+            self.logger.info("Corrector | Adaptive step sizing! h is now: " + str(self.h))
 
-        if self.verbose > 1:
-            print("post correction: ", z_new)
+        self.logger.info("Corrector | Corrected solution: " + str(z_new))
         return z_new, tan
 
     def start(self):
@@ -113,17 +130,12 @@ class Continuation:
         self.all_points.append(z)
         tan = -self.tangent(z)*-1
         for i in range(self.maxiter):
-            if self.verbose > 0:
-                print("iteration: ", i)
-                print("max_cond: ", self.max_cond(z))
+            self.logger.info("Contionuation | iteration: " + str(i) + \
+                " max condition: " + str(self.max_cond(z)))
             z, tan = self.compute_step(z, tan)
-            if self.verbose > 0:
-                print("FOUND POINT: ", z)
             self.all_points.append(z)
             if self.max_cond(z):
-                if self.verbose > 0:
-                    print("REACHED TOLERANCE CONDITION")
-                    print("iter no: ", print(i))
+                self.logger.info("Continuation | Reached tolerance condition, iteration " + str(i))
                 break
         return None
 

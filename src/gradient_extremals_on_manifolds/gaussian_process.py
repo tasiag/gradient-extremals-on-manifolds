@@ -128,8 +128,6 @@ class GaussianProcess:
         value: jnp.ndarray
             Estimated value of the GP variance at the given point.
         """
-        point = (point - self.x_mean)/self.x_std
-
         kstar = jnp.exp(
             -jnp.sum((point - self.points)**2, axis=1)
             / (2.0 * self.epsilon**2))
