@@ -37,6 +37,7 @@ DEFAULT_SAVE = 1
 DEFAULT_ITERATIONS = 18
 DEFAULT_SAMPLE_SIZE = 500
 DEFAULT_TOLERANCE = 1
+DEFAULT_THRESHOLD_SHRINKSTEPSIZE = 200 # shrink step size when approach saddle
 
 plt.close()
 
@@ -60,7 +61,7 @@ initial_3D = fixed_points[0]
 logger = setup_log("sphericalMB_sampling", DEFAULT_VERBOSE)
 
 for i in range(DEFAULT_ITERATIONS):
-
+    logger.info("ITERATION: " + str(i))
     sampler = Sampler(mb.E, lambda x: x[0]**2+x[1]**2+x[2]**2 - 1, noise_level=0.05)
     final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE)
 
@@ -71,7 +72,7 @@ for i in range(DEFAULT_ITERATIONS):
         plot_points3d(fixed_points[[1,3],:], s=[ 1 for i in range(len(fixed_points[[1,3],:]))],
                       color = (1.0, 1.0, 0.0), mode="sphere", scale_factor=0.05)
         plot_points3d(final_3D, s=[ 1 for i in range(final_3D.shape[0])], color=(1.0, 0.65, 0.0))
-        plt.tight_layout()
+        # plt.tight_layout()
         if DEFAULT_SAVE:
             mlab.savefig(str(i)+"_Samples.png")
         mlab.show()
@@ -117,6 +118,29 @@ for i in range(DEFAULT_ITERATIONS):
     logger.debug("lam: " + str(lam))
     logger.debug("variance about point: " + \
                  str(learned_potential_func.get_variance(initial)))
+    
+    h = 5
+    # shrink step size when approach saddle
+    if  i > 4 and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_THRESHOLD_SHRINKSTEPSIZE: 
+        h = 2.5
+
+    # small test continuation to decide which direction to continue 
+    if i>0:
+        tester = Continuation(initial_point=jnp.array([initial[0], initial[1],
+                                                                  lam,
+                                                                  learned_potential.potential(initial)]),
+                                            functions = [learned_potential.lucia_phi,
+                                                      learned_potential.lucia_hessian_eq1,
+                                                      learned_potential.lucia_hessian_eq2],
+                                            maxiter = 3,
+                                            verbose = 1,
+                                            tolerance = 1,
+                                            h = 5)
+        tester.start()
+        test_points = tester.getPoints()
+        test_vector = jnp.array(test_points[-1][0:2]-test_points[-2][0:2])
+        old_vector = jnp.array(gradient_extremal_points[-1][0:2]-gradient_extremal_points[-2][0:2])
+        h=h*jnp.sign(jnp.dot(test_vector, old_vector))
 
     # run gradient extremals
     gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1],
@@ -128,7 +152,7 @@ for i in range(DEFAULT_ITERATIONS):
                                      maxiter = 150,
                                      verbose = 1,
                                      tolerance = 1,
-                                     h = 5)
+                                     h = h)
     # this stops at 150 iterations; could also stop when variance is above threshold
     # using the following line
     # max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6 (alternate)
@@ -162,10 +186,11 @@ for i in range(DEFAULT_ITERATIONS):
         ax.axes.yaxis.set_major_locator(loc)
         plt.xlabel(r"$u$")
         plt.ylabel(r"$v$")
-        plt.tight_layout()
+        # plt.tight_layout()
         if DEFAULT_SAVE:
             plt.savefig(str(i)+"_2D.png")
         plt.show()
+        plt.close()
 
     gradient_extremal_3D = jax.vmap(learned_potential.psi)(jnp.array(gradient_extremal_points)[:,0:2])
     if path_3D is None:
@@ -194,6 +219,7 @@ for i in range(DEFAULT_ITERATIONS):
     logger.info("NEW POINT: " + str(initial_3D))
     logger.info("CRITERIA TO END EARLY: " + str(jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))))
 
+    logger.info("NORM: " + str(jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))))
     if jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_TOLERANCE:
         break
 

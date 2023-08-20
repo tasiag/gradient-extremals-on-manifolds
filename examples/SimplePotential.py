@@ -4,7 +4,7 @@ import jax.numpy as jnp
 
 from gradient_extremals_on_manifolds.DiffGeom_Potential import DiffGeom_Potential
 
-class SphericalZorro(DiffGeom_Potential):
+class SimplePotential(DiffGeom_Potential):
     '''
     Potential on a sphere with four local minima, copied from
     the paper "Gentlest Ascent Dynamics on Manifolds defined by Sampled Point Clouds"

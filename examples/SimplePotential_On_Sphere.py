@@ -1,10 +1,10 @@
 '''
-Gradient extremal on sphere with "zorro" potential (phi=xyz). 
+Gradient extremal on sphere with "simple potential" (phi=xyz). 
 '''
 from IPython import get_ipython
 get_ipython().run_line_magic('reset', '-fs')
 
-from SphericalZorro import SphericalZorro
+from SimplePotential import SimplePotential
 from utils import plot_spherical_potential, plot_points3d
 
 import jax
@@ -25,20 +25,20 @@ params = {'text.usetex' : True,
           }
 plt.rcParams.update(params) 
 
-zorro = SphericalZorro()
+simple_potential = SimplePotential()
 
-fixed_points = zorro.get_fixed_points(manifold=True)
-fixed_points_2D = jax.vmap(zorro.phi)(fixed_points)
+fixed_points = simple_potential.get_fixed_points(manifold=True)
+fixed_points_2D = jax.vmap(simple_potential.phi)(fixed_points)
 
 initial = fixed_points_2D[0]+jnp.array([0,0.005])
-hes = zorro.hess(initial)
+hes = simple_potential.hess(initial)
 lam = eigvalsh(hes)[0]
 
 gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1],
-                                                          lam, zorro.potential(initial)]),
-                                 functions = [zorro.lucia_phi,
-                                             zorro.lucia_hessian_eq1,
-                                             zorro.lucia_hessian_eq2],
+                                                          lam, simple_potential.potential(initial)]),
+                                 functions = [simple_potential.lucia_phi,
+                                             simple_potential.lucia_hessian_eq1,
+                                             simple_potential.lucia_hessian_eq2],
                                  maxiter = 580,
                                  verbose = 0,
                                  tolerance = 0.5,
@@ -49,14 +49,14 @@ gradient_extremal.start()
 gradient_extremal_points = gradient_extremal.getPoints()
 
 initial = fixed_points_2D[0]+jnp.array([-0.05, -0.01])#[0.1,0.1])
-hes = zorro.hess(initial)
+hes = simple_potential.hess(initial)
 lam = eigvalsh(hes)[0]
 
 gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], initial[1],
-                                                                lam, zorro.potential(initial)]),
-                                functions = [zorro.lucia_phi,
-                                             zorro.lucia_hessian_eq1,
-                                             zorro.lucia_hessian_eq2],
+                                                                lam, simple_potential.potential(initial)]),
+                                functions = [simple_potential.lucia_phi,
+                                             simple_potential.lucia_hessian_eq1,
+                                             simple_potential.lucia_hessian_eq2],
                                 maxiter = 550,
                                 verbose = 0,
                                 tolerance = 0.5,
@@ -65,7 +65,7 @@ gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], init
 gradient_extremal_right.start()
 gradient_extremal_rightpoints = gradient_extremal_right.getPoints()
 
-zorro.plot_color_mesh(colorbarTitle=r'$Z:=\psi*E$')
+simple_potential.plot_color_mesh(colorbarTitle=r'$Z:=\psi*E$')
 plt.plot(list(zip(*gradient_extremal_points))[0],
          list(zip(*gradient_extremal_points))[1], color="orange")
 
@@ -82,11 +82,11 @@ plt.ylabel(r"$v$")
 
 plt.show()
 
-gradient_extremal_3D = jax.vmap(zorro.psi)(jnp.array(gradient_extremal_points)[:,0:2])
-gradient_extremal_right_3D = jax.vmap(zorro.psi)(jnp.array(gradient_extremal_rightpoints)[:,0:2])
+gradient_extremal_3D = jax.vmap(simple_potential.psi)(jnp.array(gradient_extremal_points)[:,0:2])
+gradient_extremal_right_3D = jax.vmap(simple_potential.psi)(jnp.array(gradient_extremal_rightpoints)[:,0:2])
 
 ## 3D plot
-plot_spherical_potential(zorro.E)
+plot_spherical_potential(simple_potential.E)
 plot_points3d(gradient_extremal_3D, s=[ 1 for i in range(len(gradient_extremal_points))],
               color=(1.0, 0.65, 0.0))
 plot_points3d(gradient_extremal_right_3D, s=[ 1 for i in range(len(gradient_extremal_rightpoints))],

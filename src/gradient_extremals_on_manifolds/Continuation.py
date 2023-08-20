@@ -126,18 +126,17 @@ class Continuation:
         z = self.initial_point
         self.all_points = []
         z = self.newton_raphson(z, z, 100, self.tangent(z))
-
         self.all_points.append(z)
-        tan = -self.tangent(z)*-1
+        tan = self.tangent(z)
         for i in range(self.maxiter):
-            self.logger.info("Contionuation | iteration: " + str(i) + \
+            self.logger.info("Continuation | iteration: " + str(i) + \
                 " max condition: " + str(self.max_cond(z)))
             z, tan = self.compute_step(z, tan)
             self.all_points.append(z)
             if self.max_cond(z):
                 self.logger.info("Continuation | Reached tolerance condition, iteration " + str(i))
                 break
-        return None
+        return jnp.array([self.all_points[-1][1]-self.all_points[-2][1], self.all_points[-1][0]-self.all_points[-2][0]])
 
     def getPoints(self):
         return self.all_points
