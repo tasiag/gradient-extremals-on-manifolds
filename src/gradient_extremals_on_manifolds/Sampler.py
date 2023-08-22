@@ -19,7 +19,7 @@ class Sampler:
         self.no_iters = no_iters
 
     def _generate_candidates(self, initial, N):
-        rnd.seed(10345) # random seed while perfecting figures
+        # rnd.seed(10345) # random seed while perfecting figures
         noise = jnp.array([rnd.uniform(low=-self.noise_level, high=self.noise_level,
                            size=initial.shape) for i in range(N)])
         return initial + noise

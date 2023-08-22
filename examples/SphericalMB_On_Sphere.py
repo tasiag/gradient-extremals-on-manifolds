@@ -43,7 +43,7 @@ gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1]
 gradient_extremal.start()
 gradient_extremal_points = gradient_extremal.getPoints()
 
-mb.plot_color_mesh(colorbarTitle=r'$\psi*E$', vrangeOn=True)
+mb.plot_color_mesh(colorbarTitle=r'$Z=\psi^\star E$', vrangeOn=True)
 plt.plot(list(zip(*gradient_extremal_points))[0],
          list(zip(*gradient_extremal_points))[1], color="orange")
 plt.scatter(x=fixed_points_2D[[0,2,4],0], y=fixed_points_2D[[0,2,4],1],

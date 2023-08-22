@@ -117,7 +117,7 @@ class Continuation:
                     self.h = min(1.2 * self.h, self.h_max)
                 break
             self.h = 0.5 * self.h
-            self.logger.info("Corrector | Adaptive step sizing! h is now: " + str(self.h))
+            self.logger.info("Corrector | Adaptive step sizing! h is now: " + str(self.h) + " at iteration " + str(i))
 
         self.logger.info("Corrector | Corrected solution: " + str(z_new))
         return z_new, tan
@@ -136,6 +136,7 @@ class Continuation:
             if self.max_cond(z):
                 self.logger.info("Continuation | Reached tolerance condition, iteration " + str(i))
                 break
+
         return jnp.array([self.all_points[-1][1]-self.all_points[-2][1], self.all_points[-1][0]-self.all_points[-2][0]])
 
     def getPoints(self):

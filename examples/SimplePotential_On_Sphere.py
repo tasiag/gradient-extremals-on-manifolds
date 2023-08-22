@@ -65,7 +65,7 @@ gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], init
 gradient_extremal_right.start()
 gradient_extremal_rightpoints = gradient_extremal_right.getPoints()
 
-simple_potential.plot_color_mesh(colorbarTitle=r'$Z:=\psi*E$')
+simple_potential.plot_color_mesh(colorbarTitle=r'$Z=\psi^\star E$')
 plt.plot(list(zip(*gradient_extremal_points))[0],
          list(zip(*gradient_extremal_points))[1], color="orange")
 

@@ -79,3 +79,25 @@ def setup_log(name, verbose):
     logger.addHandler(stream_handler)
     return logger 
 
+def get_direction(points, logger=None):
+    ''' Returns normalized direction of line of best fit through points'''
+    datamean = points.mean(axis=0)
+    uu, dd, vv = jnp.linalg.svd(points - datamean)
+
+    check_dir_vector = (points[-1]-points[0])/jnp.linalg.norm((points[-1]-points[0]))
+    signs_from_utils = jnp.dot(check_dir_vector, vv[0])
+
+    if abs(signs_from_utils) < 0.8: # bad fit, too much curvature
+        if logger is not None: logger.info("Get Direction | Bad fit, using last two points")
+        return check_dir_vector # instead, just use last 2 points 
+
+    return vv[0]*jnp.sign(jnp.dot(check_dir_vector, vv[0]))
+
+def find_first_nan(points):
+    ''' Returns index of first nan in list or array. Otherwise returns length.'''
+    for i in range(len(points)):
+        if jnp.isnan(points[i]):
+            return i
+    return len(points)
+
+
