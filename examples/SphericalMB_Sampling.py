@@ -71,6 +71,8 @@ for i in range(DEFAULT_ITERATIONS):
     sampler = Sampler(mb.E, lambda x: x[0]**2+x[1]**2+x[2]**2 - 1, noise_level=0.05)
     final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE)
 
+    logger.debug("3d shape: " + str(final_3D.shape))
+
     if DEFAULT_PLOT:
         plot_spherical_potential(mb.E)
         plot_points3d(fixed_points[[0,2,4],:], s=[ 1 for i in range(len(fixed_points[[0,2,4],:]))],
@@ -110,12 +112,11 @@ for i in range(DEFAULT_ITERATIONS):
     learned_potential = DiffGeom_Potential(learned_potential_func, phi, psi)
 
     initial = phi(initial_3D) 
-    lam, vec = learned_potential.getHessianEig(initial)
+    lam, vec = jnp.linalg.eigh(learned_potential.hess(initial))
     lam = lam[0]
     if i < 2: 
-        initial += vec[0]*0.00003               # to start continuation, move away from
-        hes = learned_potential.hess(initial)   # minima in direction of interest 
-        lam = eigvalsh(hes)[0]
+        initial += vec[0]*0.0003
+        lam = eigvalsh(learned_potential.hess(initial))[0]
 
     logger.debug("initial: " + str(initial))
     logger.debug("lam: " + str(lam))
@@ -141,12 +142,13 @@ for i in range(DEFAULT_ITERATIONS):
                                             h = h)
         tester.start()
         test_points = jnp.array(tester.getPoints())[:,0:2]
-        test_points3D = jax.vmap(learned_potential.psi)(jnp.array(test_points))
+        test_vector = get_direction(test_points)
 
-        test_vector3D = get_direction(jnp.array(test_points3D), logger)
-        old_vector3D = get_direction(jnp.array(gradient_extremal_3D[-5:]), logger)
-        sign = jnp.sign(jnp.dot(test_vector3D, old_vector3D))
-        logger.debug("magnitude of dotted 3D: " + str(jnp.dot(test_vector3D, old_vector3D)))
+        prev_points_transferred = jax.vmap(phi)(jnp.array(gradient_extremal_3D)[-5:, :])
+        prev_vector = get_direction(prev_points_transferred)
+
+        sign = jnp.sign(jnp.dot(test_vector, prev_vector))
+        logger.debug("magnitude of dotted 3D: " + str(jnp.dot(test_vector, prev_vector)))
         if sign == 0 or sign == math.isnan(sign): sign = 1
         h=h*sign
 
@@ -247,13 +249,11 @@ for i in range(DEFAULT_ITERATIONS):
     initial_3D = gradient_extremal_3D[-2]
     if jnp.isnan(initial_3D[0]): 
         index = find_first_nan(jnp.array(gradient_extremal_3D)[:,0])
-        initial_3D = jnp.array(gradient_extremal_3D)[index-1, :]+jnp.array([-0.01,0.01, 0.01])
-        print("NAN's at index: ", index, " initial_3d is now: ", initial_3D, " from ", gradient_extremal_3D[index-1, :])
+        initial_3D = jnp.array(gradient_extremal_3D)[index-1, :]+jnp.array([-0.01, 0.01, 0.01])
         logger.debug("There were NAN's in the continuation (likely infinite jacobian).")
 
     logger.info("NEW POINT: " + str(initial_3D))
     logger.info("CRITERIA TO END EARLY: " + str(jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))))
-    print("NORM: " + str(jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))))
 
     if i > DEFAULT_MINCHARTSEXPECTED and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_TOLERANCE:
         break
