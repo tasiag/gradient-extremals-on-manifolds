@@ -72,23 +72,17 @@ class Continuation:
     def newton_raphson(self, z, z0, maxiter, tan):
         for i in range(maxiter):
             soln = self.F(z, z0, tan)
-            self.logger.info("Newton-Raphson | iter: " + str(i) + \
-                " | z: " + str(z)+ "soln: " + str(soln) + \
-                " | norm: " + str(jnp.linalg.norm(soln)))
+            self.logger.info(f"Newton-Raphson | iter: {i} | z: {z} | soln: {soln} | norm: {jnp.linalg.norm(soln)}")
             if jnp.linalg.norm(soln) < self.tolerance:
-                self.logger.debug("Found value: " + str(z))
+                self.logger.debug(f"Found value: {z}")
                 return z
-            self.logger.debug("Newton-Raphson | Grad at " + str(z) + " is " + \
-                str(jax.grad(self.function)(z)) + " | Jacobian: " + \
-                str(self.F_jacobian(z, z0, tan)))
+            self.logger.debug(f"Newton-Raphson | Grad at {z} is {jax.grad(self.function)(z)} \
+                | Jacobian {self.F_jacobian(z, z0, tan)}")
             z = z + jnp.linalg.solve(self.F_jacobian(z, z0, tan), -self.F(z, z0, tan))
         self.logger.debug("Newton-Raphson | Max iterations reached. No solution found.")
-        self.logger.debug("Newton-Raphson | z: " + str(z) + "norm: " + str(jnp.linalg.norm(soln)))
-        self.logger.info("Newton-Raphson |" + " Newton_Raphson did not converge. Norm of solution: " + \
-                         str(jnp.linalg.norm(soln)))
-        self.logger.info("Newton-Raphson | The current zeros of the equations: " + str(soln))
-        self.logger.info("Newton-Raphson | Which is given by z = " + str(z))
-        self.logger.info("Newton-Raphson | With this jacobian: " + str(self.F_jacobian(z, z0, tan)))
+        self.logger.debug(f"Newton-Raphson | z: {z} norm: {jnp.linalg.norm(soln)}")
+        self.logger.info(f"Newton-Raphson | The current zeros of the equations: {soln}")
+        self.logger.info(f"Newton-Raphson | With this jacobian: {self.F_jacobian(z, z0, tan)}")
         return None
 
     def nullspace(self, A, atol=1e-13, rtol=0):
@@ -102,24 +96,25 @@ class Continuation:
 
     def compute_step(self, z0, old_tangent):
         tan = self.tangent(z0) # obtain tangent to original point
-        self.logger.info("tangent: " + str(tan))
+        self.logger.info(f"tangent: {tan}")
         if jnp.dot(old_tangent, tan) < 0: # adaptively reverses direction
             tan = -tan
             self.logger.info("Predictor | Reversing sign of tangent")
 
         for i in range(20):
             z_new = z0 + self.h*tan # predict new step along tangent
-            self.logger.info("Predictor | Predicted Solution: " + str(z_new))
+            self.logger.info(f"Predictor | Predicted Solution: {z_new}")
             z_new = self.newton_raphson(z_new, z0, 100, tan)
             if z_new is not None: # Newton-Raphson converged, step h back up if needed
                 if self.h < self.h_max:
                     self.h = min(1.2 * self.h, self.h_max)
                 break
-            if z_new is None: self.logger.debug("z_new is none at compute_step's for loop, iteration " + str(i))
+            if z_new is None: 
+                self.logger.debug(f"z_new is none at compute_step's for loop, iteration {i}")
             self.h = 0.5 * self.h # Newton-Raphson did not converge, reduce step size
-            self.logger.info("Corrector | Adaptive step sizing! h is now: " + str(self.h) + " at iteration " + str(i))
+            self.logger.info(f"Corrector | Adaptive step sizing! h is now: {self.h} at iteration {i}")
 
-        self.logger.info("Corrector | Corrected solution: " + str(z_new))
+        self.logger.info(f"Corrector | Corrected solution: {z_new}")
         return z_new, tan
 
     def start(self):
@@ -134,14 +129,13 @@ class Continuation:
         self.all_points.append(z)
         tan = self.tangent(z)
         for i in range(self.maxiter):
-            self.logger.info("Continuation | iteration: " + str(i) + \
-                " max condition: " + str(self.max_cond(z)))
+            self.logger.info(f"Continuation | iteration: {i} max condition: {self.max_cond(z)}")
             z, tan = self.compute_step(z, tan)
             if z is None:
                 self.logger.warning("Continuation | Terminating early. Could not meet supplied tolerance.")
                 break
             if self.max_cond(z):
-                self.logger.info("Continuation | Reached tolerance condition, iteration " + str(i))
+                self.logger.info(f"Continuation | Reached tolerance condition, iteration {i}")
                 break
             self.all_points.append(z)
 

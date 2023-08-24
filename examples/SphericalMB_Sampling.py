@@ -67,13 +67,13 @@ initial_3D = fixed_points[0]
 logger = setup_log("sphericalMB_sampling", DEFAULT_VERBOSE)
 
 for i in range(DEFAULT_ITERATIONS):
-    logger.info("ITERATION: " + str(i))
+    logger.info(f"ITERATION: {i}")
     sampler = Sampler(mb.E, lambda x: x[0]**2+x[1]**2+x[2]**2 - 1, noise_level=0.05)
     final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE)
 
-    logger.debug("3d shape: " + str(final_3D.shape))
-    logger.debug("Are there nan's or None in final_3D: " + \
-        str(jnp.any(jnp.isnan(final_3D)) or any(None in sub for sub in final_3D)))
+    logger.debug(f"3d shape: {final_3D.shape}")
+    logger.debug(f"Are there nan's? {jnp.any(jnp.isnan(final_3D))}")
+    logger.debug(f" or None's in final_3D? ({any(None in sub for sub in final_3D)}) ")
 
     if DEFAULT_PLOT:
         plot_spherical_potential(mb.E)
@@ -84,7 +84,7 @@ for i in range(DEFAULT_ITERATIONS):
         plot_points3d(final_3D, s=[ 1 for i in range(final_3D.shape[0])], color=(1.0, 0.65, 0.0))
         plt.tight_layout()
         if DEFAULT_SAVE:
-            mlab.savefig(str(i)+"_Samples.png")
+            mlab.savefig(f"{i}_Samples.png")
         if DEFAULT_SHOWPLOT: mlab.show()
         mlab.close(all=True)
 
@@ -95,14 +95,13 @@ for i in range(DEFAULT_ITERATIONS):
     # learn pushforward
     phi = DiffusionMapCoordinates(ambient_dim, 2) # dimension of manifold set
     final_2D = phi.learn(final_3D)
-    logger.debug("Are there nan's or None in final_2D: " + \
-        str(jnp.any(jnp.isnan(final_2D)) or any(None in sub for sub in final_2D)))
+    logger.debug(f"Are there nan's? {jnp.any(jnp.isnan(final_2D))}")
+    logger.debug(f" or None's in final_2D? ({any(None in sub for sub in final_2D)}) ")
 
-    logger.debug("domain: " + str(jnp.min(final_2D[:,0])) + " to " + \
-                 str(jnp.max(final_2D[:,0])) + ", " + str(jnp.min(final_2D[:,1])) \
-                 + " to " + str(jnp.max(final_2D[:,1])))
-    logger.debug("Learned_phi: " + str(phi(final_3D[0])))
-    logger.debug("true phi: " + str(final_2D[0]))
+    logger.debug(f"domain: {jnp.min(final_2D[:,0])} to {jnp.max(final_2D[:,0])}; \
+                  {jnp.min(final_2D[:,1])} to {jnp.max(final_2D[:,1])}")
+    logger.debug(f"Learned_phi: {phi(final_3D[0])}")
+    logger.debug(f"true phi: {final_2D[0]}")
 
     # learn pullback
     psi = make_gaussian_process(jnp.asarray(final_2D), jnp.asarray(final_3D))
@@ -122,15 +121,14 @@ for i in range(DEFAULT_ITERATIONS):
         initial += vec[0]*0.0003
         lam = eigvalsh(learned_potential.hess(initial))[0]
 
-    logger.debug("initial: " + str(initial))
-    logger.debug("lam: " + str(lam))
-    logger.debug("variance about point: " + \
-                 str(learned_potential_func.get_variance(initial)))
-    
+    logger.debug(f"initial: {initial}")
+    logger.debug(f"lam: {lam}")
+    logger.debug(f"variance about point: {learned_potential_func.get_variance(initial)}")
+
     h = 5
 
     # shrink step size when approach saddle
-    if  i > DEFAULT_MINCHARTSEXPECTED and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_THRESHOLD_SHRINKSTEPSIZE: 
+    if i > DEFAULT_MINCHARTSEXPECTED and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_THRESHOLD_SHRINKSTEPSIZE: 
         h = 2.5
 
     # small test continuation to decide which direction to continue 
@@ -152,7 +150,7 @@ for i in range(DEFAULT_ITERATIONS):
         prev_vector = get_direction(prev_points_transferred)
 
         sign = jnp.sign(jnp.dot(test_vector, prev_vector))
-        logger.debug("sign checker: " + str(jnp.dot(test_vector, prev_vector)))
+        logger.debug(f"sign checker: {jnp.dot(test_vector, prev_vector)}")
         if sign == 0 or sign == math.isnan(sign): sign = 1
         h=h*sign
 
@@ -194,11 +192,11 @@ for i in range(DEFAULT_ITERATIONS):
             plt.xlabel(r"$u$")
             plt.ylabel(r"$v$")
             plt.tight_layout()
-            if DEFAULT_SAVE: plt.savefig(str(i)+"_Debug.png")
+            if DEFAULT_SAVE: plt.savefig(f"{i}_Debug.png")
             if DEFAULT_SHOWPLOT: plt.show()
             plt.close()
 
-    logger.debug("step size: " + str(h))
+    logger.debug(f"step size: {h}")
 
     # run gradient extremals
     try:
@@ -261,7 +259,7 @@ for i in range(DEFAULT_ITERATIONS):
         plt.ylabel(r"$v$")
         plt.tight_layout()
         if DEFAULT_SAVE:
-            plt.savefig(str(i)+"_2D.png")
+            plt.savefig(f"{i}_2D.png")
         if DEFAULT_SHOWPLOT: plt.show()
         plt.close()
 
@@ -283,7 +281,7 @@ for i in range(DEFAULT_ITERATIONS):
 
         plt.tight_layout()
         if DEFAULT_SAVE:
-            mlab.savefig(str(i)+"_3D.png")
+            mlab.savefig(f"{i}_3D.png")
         if DEFAULT_SHOWPLOT: mlab.show()
         mlab.close(all=True)
 
@@ -293,8 +291,8 @@ for i in range(DEFAULT_ITERATIONS):
         initial_3D = jnp.array(gradient_extremal_3D)[index-1, :]+jnp.array([-0.01, 0.01, 0.01])
         logger.debug("There were NAN's in the continuation (likely infinite jacobian).")
 
-    logger.info("NEW POINT: " + str(initial_3D))
-    logger.info("CRITERIA TO END EARLY: " + str(jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))))
+    logger.info(f"NEW POINT: {initial_3D}")
+    logger.info(f"CRITERIA TO END EARLY: {jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D))}")
 
     if i > DEFAULT_MINCHARTSEXPECTED and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_TOLERANCE:
         break
