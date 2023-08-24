@@ -72,6 +72,8 @@ for i in range(DEFAULT_ITERATIONS):
     final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE)
 
     logger.debug("3d shape: " + str(final_3D.shape))
+    logger.debug("Are there nan's or None in final_3D: " + \
+        str(jnp.any(jnp.isnan(final_3D)) or any(None in sub for sub in final_3D)))
 
     if DEFAULT_PLOT:
         plot_spherical_potential(mb.E)
@@ -93,6 +95,8 @@ for i in range(DEFAULT_ITERATIONS):
     # learn pushforward
     phi = DiffusionMapCoordinates(ambient_dim, 2) # dimension of manifold set
     final_2D = phi.learn(final_3D)
+    logger.debug("Are there nan's or None in final_2D: " + \
+        str(jnp.any(jnp.isnan(final_2D)) or any(None in sub for sub in final_2D)))
 
     logger.debug("domain: " + str(jnp.min(final_2D[:,0])) + " to " + \
                  str(jnp.max(final_2D[:,0])) + ", " + str(jnp.min(final_2D[:,1])) \
@@ -114,7 +118,7 @@ for i in range(DEFAULT_ITERATIONS):
     initial = phi(initial_3D) 
     lam, vec = jnp.linalg.eigh(learned_potential.hess(initial))
     lam = lam[0]
-    if i < 2: 
+    if i == 0: 
         initial += vec[0]*0.0003
         lam = eigvalsh(learned_potential.hess(initial))[0]
 
@@ -138,7 +142,7 @@ for i in range(DEFAULT_ITERATIONS):
                                                       learned_potential.lucia_hessian_eq2],
                                             maxiter = 5,
                                             verbose = 1,
-                                            tolerance = .1,
+                                            tolerance = 1,
                                             h = h)
         tester.start()
         test_points = jnp.array(tester.getPoints())[:,0:2]
@@ -148,9 +152,51 @@ for i in range(DEFAULT_ITERATIONS):
         prev_vector = get_direction(prev_points_transferred)
 
         sign = jnp.sign(jnp.dot(test_vector, prev_vector))
-        logger.debug("magnitude of dotted 3D: " + str(jnp.dot(test_vector, prev_vector)))
+        logger.debug("sign checker: " + str(jnp.dot(test_vector, prev_vector)))
         if sign == 0 or sign == math.isnan(sign): sign = 1
         h=h*sign
+
+        if DEFAULT_PLOT:
+            learned_potential.plot_color_mesh(colorbarTitle=r'$Z=\psi^\star E$', contour=True, contourCount=20)
+
+            plt.plot(final_2D[boundary,0], final_2D[boundary,1], 'r--', lw=2)
+
+
+            plt.plot(list(zip(*test_points))[0], list(zip(*test_points))[1],
+                 color="orange", linewidth=0.5)
+            plt.scatter(list(zip(*test_points))[0],
+                        list(zip(*test_points))[1],
+                        color="orange", s=12, zorder=30)
+            plt.scatter(list(zip(*test_points))[0][-1],
+                        list(zip(*test_points))[1][-1],
+                        color="red", s=12, zorder=38)
+            plt.scatter(list(zip(*test_points))[0][0],
+                        list(zip(*test_points))[1][0],
+                        color="purple", s=12, zorder=38)
+
+            plt.plot(list(zip(*prev_points_transferred))[0],
+                    list(zip(*prev_points_transferred))[1],
+                    color="yellow", linewidth=0.5)
+            plt.scatter(list(zip(*prev_points_transferred))[0],
+                        list(zip(*prev_points_transferred))[1],
+                        color="yellow", s=12, zorder=30)
+            plt.scatter(list(zip(*prev_points_transferred))[0][-1],
+                        list(zip(*prev_points_transferred))[1][-1],
+                        color="red", s=12, zorder=38)
+            plt.scatter(list(zip(*prev_points_transferred))[0][0],
+                        list(zip(*prev_points_transferred))[1][0],
+                        color="purple", s=12, zorder=38)
+
+            ax = plt.gca()
+            loc = plticker.MultipleLocator(base=0.001) # this locator puts ticks at regular intervals
+            ax.axes.xaxis.set_major_locator(loc)
+            ax.axes.yaxis.set_major_locator(loc)
+            plt.xlabel(r"$u$")
+            plt.ylabel(r"$v$")
+            plt.tight_layout()
+            if DEFAULT_SAVE: plt.savefig(str(i)+"_Debug.png")
+            if DEFAULT_SHOWPLOT: plt.show()
+            plt.close()
 
     logger.debug("step size: " + str(h))
 
@@ -165,29 +211,15 @@ for i in range(DEFAULT_ITERATIONS):
                                          maxiter = 150,
                                          max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6,
                                          verbose = 1,
-                                         tolerance = 0.1,
+                                         tolerance = 1,
                                          h = h)
         # this stops at 150 iterations; could also stop when variance is above threshold
         # using the following line
         # max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6 (alternate)
 
         gradient_extremal.start()
-
     except:
-        logger.info("Reducing max step size.")
-        gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1],
-                                                                  lam,
-                                                                  learned_potential.potential(initial)]),
-                                         functions = [learned_potential.lucia_phi,
-                                                      learned_potential.lucia_hessian_eq1,
-                                                      learned_potential.lucia_hessian_eq2],
-                                         maxiter = 150,
-                                         max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6,
-                                         verbose = 1,
-                                         tolerance = 0.1,
-                                         h = h/2)
-
-        gradient_extremal.start()
+        logger.WARNING("SphericalMB_Sampling | Continuation failed.")
 
     gradient_extremal_points = gradient_extremal.getPoints()
 
@@ -212,6 +244,14 @@ for i in range(DEFAULT_ITERATIONS):
         plt.scatter(list(zip(*gradient_extremal_points))[0][::15],
                     list(zip(*gradient_extremal_points))[1][::15],
                     color="orange", s=12, zorder=30)
+        # the below lines color the starting point in purple 
+        # and the final point in red to check direction.
+        # plt.scatter(list(zip(*gradient_extremal_points))[0][-1],
+        #             list(zip(*gradient_extremal_points))[1][-1],
+        #             color="red", s=12, zorder=38)
+        # plt.scatter(list(zip(*gradient_extremal_points))[0][0],
+        #             list(zip(*gradient_extremal_points))[1][0],
+        #             color="purple", s=12, zorder=38)
 
         ax = plt.gca()
         loc = plticker.MultipleLocator(base=0.001) # this locator puts ticks at regular intervals
@@ -219,6 +259,7 @@ for i in range(DEFAULT_ITERATIONS):
         ax.axes.yaxis.set_major_locator(loc)
         plt.xlabel(r"$u$")
         plt.ylabel(r"$v$")
+        plt.tight_layout()
         if DEFAULT_SAVE:
             plt.savefig(str(i)+"_2D.png")
         if DEFAULT_SHOWPLOT: plt.show()

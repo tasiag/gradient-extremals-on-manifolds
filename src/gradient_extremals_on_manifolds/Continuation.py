@@ -89,7 +89,7 @@ class Continuation:
         self.logger.info("Newton-Raphson | The current zeros of the equations: " + str(soln))
         self.logger.info("Newton-Raphson | Which is given by z = " + str(z))
         self.logger.info("Newton-Raphson | With this jacobian: " + str(self.F_jacobian(z, z0, tan)))
-        return z
+        return None
 
     def nullspace(self, A, atol=1e-13, rtol=0):
         A = jnp.atleast_2d(A)
@@ -100,7 +100,6 @@ class Continuation:
         main_equations = jnp.array([jax.jacobian(function)(z) for function in self.functions])
         return self.nullspace(main_equations)
 
-    # predictor step
     def compute_step(self, z0, old_tangent):
         tan = self.tangent(z0) # obtain tangent to original point
         self.logger.info("tangent: " + str(tan))
@@ -111,12 +110,13 @@ class Continuation:
         for i in range(20):
             z_new = z0 + self.h*tan # predict new step along tangent
             self.logger.info("Predictor | Predicted Solution: " + str(z_new))
-            z_new = self.newton_raphson(z_new, z0, 10, tan)
-            if z_new is not None:
+            z_new = self.newton_raphson(z_new, z0, 100, tan)
+            if z_new is not None: # Newton-Raphson converged, step h back up if needed
                 if self.h < self.h_max:
                     self.h = min(1.2 * self.h, self.h_max)
                 break
-            self.h = 0.5 * self.h
+            if z_new is None: self.logger.debug("z_new is none at compute_step's for loop, iteration " + str(i))
+            self.h = 0.5 * self.h # Newton-Raphson did not converge, reduce step size
             self.logger.info("Corrector | Adaptive step sizing! h is now: " + str(self.h) + " at iteration " + str(i))
 
         self.logger.info("Corrector | Corrected solution: " + str(z_new))
@@ -125,17 +125,25 @@ class Continuation:
     def start(self):
         z = self.initial_point
         self.all_points = []
-        z = self.newton_raphson(z, z, 100, self.tangent(z))
+
+        z = self.newton_raphson(z, z, 1000, self.tangent(z))
+        if z is None: 
+            self.logger.error("Continuation | Initial starting point did not converge.")
+            return None
+
         self.all_points.append(z)
         tan = self.tangent(z)
         for i in range(self.maxiter):
             self.logger.info("Continuation | iteration: " + str(i) + \
                 " max condition: " + str(self.max_cond(z)))
             z, tan = self.compute_step(z, tan)
-            self.all_points.append(z)
+            if z is None:
+                self.logger.warning("Continuation | Terminating early. Could not meet supplied tolerance.")
+                break
             if self.max_cond(z):
                 self.logger.info("Continuation | Reached tolerance condition, iteration " + str(i))
                 break
+            self.all_points.append(z)
 
         return jnp.array([self.all_points[-1][1]-self.all_points[-2][1], self.all_points[-1][0]-self.all_points[-2][0]])
 
