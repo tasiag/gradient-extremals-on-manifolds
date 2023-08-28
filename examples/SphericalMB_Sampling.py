@@ -44,7 +44,7 @@ DEFAULT_SAMPLE_SIZE = 500
 DEFAULT_TOLERANCE = 10
 DEFAULT_THRESHOLD_SHRINKSTEPSIZE = 150 # shrink step size when approach saddle
 DEFAULT_MINCHARTSEXPECTED = 4
-DEFAULT_SEED = 132
+DEFAULT_SEED = 9521
 
 plt.close()
 
@@ -225,7 +225,7 @@ for i in range(DEFAULT_ITERATIONS):
 
         gradient_extremal.start()
     except:
-        logger.WARNING("SphericalMB_Sampling | Continuation failed.")
+        logger.warning("SphericalMB_Sampling | Continuation failed.")
 
     gradient_extremal_points = gradient_extremal.getPoints()
 
