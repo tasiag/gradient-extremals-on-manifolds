@@ -1,6 +1,5 @@
 import jax
 import jax.numpy as jnp
-import numpy.random as rnd
 
 class Sampler:
 
@@ -18,14 +17,14 @@ class Sampler:
         self.noise_level = noise_level
         self.no_iters = no_iters
 
-    def _generate_candidates(self, initial, N):
-        # rnd.seed(10345) # random seed while perfecting figures
-        noise = jnp.array([rnd.uniform(low=-self.noise_level, high=self.noise_level,
-                           size=initial.shape) for i in range(N)])
+    def _generate_candidates(self, initial, N, key = jax.random.PRNGKey(0)):
+        noise = jax.random.uniform(key=key,
+            minval=-self.noise_level, maxval=self.noise_level,
+            shape=(N, int(initial.shape[0])))
         return initial + noise
 
-    def draw_samples(self, initial, N):
-        candidates = self._generate_candidates(initial, N)
+    def draw_samples(self, initial, N, key = jax.random.PRNGKey(0)):
+        candidates = self._generate_candidates(initial, N, key)
         for i in range(self.no_iters):
             constraint = jnp.expand_dims(jax.vmap(self.constraint)(candidates), axis=1)
             grad_constraint = jax.vmap(jax.jacobian(self.constraint))(candidates)

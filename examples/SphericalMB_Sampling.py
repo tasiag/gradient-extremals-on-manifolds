@@ -44,6 +44,7 @@ DEFAULT_SAMPLE_SIZE = 500
 DEFAULT_TOLERANCE = 10
 DEFAULT_THRESHOLD_SHRINKSTEPSIZE = 150 # shrink step size when approach saddle
 DEFAULT_MINCHARTSEXPECTED = 4
+DEFAULT_SEED = 132
 
 plt.close()
 
@@ -61,6 +62,7 @@ mb = SphericalMB()
 fixed_points = mb.get_fixed_points(manifold=True)
 fixed_points_2D = jax.vmap(mb.phi)(fixed_points)
 
+key = None
 path_3D = None
 initial_3D = fixed_points[0]
 
@@ -68,8 +70,14 @@ logger = setup_log("sphericalMB_sampling", DEFAULT_VERBOSE)
 
 for i in range(DEFAULT_ITERATIONS):
     logger.info(f"ITERATION: {i}")
+
+    if key == None: 
+        key = jax.random.PRNGKey(DEFAULT_SEED)
+    else:
+        _, key = jax.random.split(key)
+
     sampler = Sampler(mb.E, lambda x: x[0]**2+x[1]**2+x[2]**2 - 1, noise_level=0.05)
-    final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE)
+    final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE, key = key)
 
     logger.debug(f"3d shape: {final_3D.shape}")
     logger.debug(f"Are there nan's? {jnp.any(jnp.isnan(final_3D))}")
