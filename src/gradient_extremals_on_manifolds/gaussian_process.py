@@ -75,6 +75,8 @@ class GaussianProcess:
 
         if self.epsilon is None:
             threshold = jnp.finfo(points.dtype).eps * 1e2
+            if len(distances2[distances2 > threshold]) < 1:
+                threshold = threshold / 2
             self.epsilon = jnp.sqrt(
                 jnp.median(distances2[distances2 > threshold])
             )

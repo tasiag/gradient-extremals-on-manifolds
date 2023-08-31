@@ -44,11 +44,6 @@ class Potential(ABC):
     def hessian(self, z):
         return jax.jacfwd(jax.jacrev(self.potential))(z)
 
-    # returns eigenvalues, eigenvectors of Hessian
-    @partial(jit, static_argnums=0)
-    def getHessianEig(self, z):
-        return jnp.linalg.eigh(self.hessian(z))
-
     # z = x, y, ..., lambda, L
     @partial(jit, static_argnums=0)
     def lucia_phi(self, z):

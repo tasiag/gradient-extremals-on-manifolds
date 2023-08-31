@@ -1,8 +1,6 @@
 '''
 Gradient extremal on sphere with "simple potential" (phi=xyz). 
 '''
-from IPython import get_ipython
-get_ipython().run_line_magic('reset', '-fs')
 
 from SimplePotential import SimplePotential
 from utils import plot_spherical_potential, plot_points3d
@@ -15,11 +13,11 @@ from scipy.linalg import eigvalsh
 
 from gradient_extremals_on_manifolds.Continuation import Continuation
 
+
 plt.close()
 
-#Direct input 
+# font setting
 plt.rcParams['text.latex.preamble']=r"\usepackage{lmodern}"
-#Options
 params = {'text.usetex' : True,
           'font.size' : 18
           }
@@ -48,19 +46,19 @@ gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1]
 gradient_extremal.start()
 gradient_extremal_points = gradient_extremal.getPoints()
 
-initial = fixed_points_2D[0]+jnp.array([-0.05, -0.01])#[0.1,0.1])
+initial = fixed_points_2D[0]+jnp.array([-0.05, -0.01])
 hes = simple_potential.hess(initial)
 lam = eigvalsh(hes)[0]
 
 gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], initial[1],
                                                                 lam, simple_potential.potential(initial)]),
-                                functions = [simple_potential.lucia_phi,
+                                       functions = [simple_potential.lucia_phi,
                                              simple_potential.lucia_hessian_eq1,
                                              simple_potential.lucia_hessian_eq2],
-                                maxiter = 550,
-                                verbose = 0,
-                                tolerance = 0.5,
-                                h = 1E-1)
+                                       maxiter = 550,
+                                       verbose = 0,
+                                       tolerance = 0.5,
+                                       h = 1E-1)
 
 gradient_extremal_right.start()
 gradient_extremal_rightpoints = gradient_extremal_right.getPoints()
