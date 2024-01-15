@@ -54,7 +54,6 @@ params = {'text.usetex' : True,
           }
 plt.rcParams.update(params) 
 
-
 mb = SphericalMB()
 fixed_points = mb.get_fixed_points(manifold=True)
 fixed_points_2D = jax.vmap(mb.phi)(fixed_points)

@@ -19,23 +19,42 @@ plt.close()
 
 DEFAULT_VERBOSE = False
 
+MODE = 0
+# modes: 
+# gradient extremals: 0
+# y-nullcline: 1
+
 mb = SphericalMB()
 fixed_points = mb.get_fixed_points(manifold=True)
 fixed_points_2D = jax.vmap(mb.phi)(fixed_points)
 
 _, vec = jnp.linalg.eigh(mb.hess(fixed_points_2D[0]))
-initial = fixed_points_2D[0]-vec[0]*0.01
+initial = fixed_points_2D[0]
 lam = eigvalsh(mb.hess(initial))[0]
 
-gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1],
-                                 lam, mb.potential(initial)]),
-                                 functions = [mb.lucia_phi,
-                                             mb.lucia_hessian_eq1,
-                                             mb.lucia_hessian_eq2],
-                                 maxiter = 1200,
+
+if MODE == 0:
+   initial -= vec[0]*0.01 
+   initial_point = jnp.array([initial[0], initial[1], lam, mb.potential(initial)])
+   functions = [mb.lucia_phi, mb.lucia_hessian_eq1, mb.lucia_hessian_eq2]
+   tolerance = 5
+   h = -8.0
+   maxiter = 1200
+elif MODE == 1:
+   initial_point = jnp.array([initial[0], initial[1]])
+   functions = [mb.y_nullcline]
+   tolerance = 0.001
+   h = -0.01
+   maxiter = 800
+else:
+   raise Exception("MODE not available. Choose other MODE.")
+
+gradient_extremal = Continuation(initial_point=initial_point,
+                                 functions = functions,
+                                 maxiter = maxiter,
                                  verbose = DEFAULT_VERBOSE,
-                                 tolerance = 5,
-                                 h = -10.0)
+                                 tolerance = tolerance,
+                                 h = h)
 
 
 gradient_extremal.start()

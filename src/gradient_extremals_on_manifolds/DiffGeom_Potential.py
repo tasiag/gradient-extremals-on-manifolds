@@ -99,6 +99,21 @@ class DiffGeom_Potential(Potential):
     def phi(self, z: jnp.array) -> jnp.array:
         return self.phi_func(z)
 
+    # x-nullcline
+    @partial(jit, static_argnums=0)
+    def x_nullcline(self, u: jnp.array, value = 0):
+        return self.grad(u)[0] - value
+
+    # y-nullcline
+    @partial(jit, static_argnums=0)
+    def y_nullcline(self, u: jnp.array, value = 0):
+        return self.grad(u)[1] - value
+
+    # equal-nullcline
+    @partial(jit, static_argnums=0)
+    def equal_nullcline(self, u: jnp.array):
+        return self.grad(u)[1] - self.grad(u)[0]
+
     # p = u, v, lambda, L
     @partial(jit, static_argnums=0)
     def lucia_phi(self, p: jnp.array):
