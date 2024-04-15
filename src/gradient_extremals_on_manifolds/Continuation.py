@@ -135,7 +135,7 @@ class Continuation:
                 self.logger.warning("Continuation | Terminating early. Could not meet supplied tolerance.")
                 break
             if self.max_cond(z):
-                self.logger.info(f"Continuation | Reached max condition, iteration {i}")
+                self.logger.info(f"Continuation | Reached tolerance condition, iteration {i}")
                 break
             self.all_points.append(z)
 

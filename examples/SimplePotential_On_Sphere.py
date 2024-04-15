@@ -37,7 +37,7 @@ gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1]
                                  functions = [simple_potential.lucia_phi,
                                              simple_potential.lucia_hessian_eq1,
                                              simple_potential.lucia_hessian_eq2],
-                                 maxiter = 150, #580,
+                                 maxiter = 580,
                                  verbose = 0,
                                  tolerance = 0.5,
                                  h = 1E-1)
@@ -55,7 +55,7 @@ gradient_extremal_right = Continuation(initial_point=jnp.array([initial[0], init
                                        functions = [simple_potential.lucia_phi,
                                              simple_potential.lucia_hessian_eq1,
                                              simple_potential.lucia_hessian_eq2],
-                                       maxiter = 2,#550,
+                                       maxiter = 550,
                                        verbose = 0,
                                        tolerance = 0.5,
                                        h = 1E-1)
