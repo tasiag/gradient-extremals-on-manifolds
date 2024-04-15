@@ -10,6 +10,9 @@ __all__ = ['GaussianProcess', 'make_gaussian_process']
 from typing import Optional
 from functools import partial
 
+from .distances import EuclideanDistance, Distance
+from .utils import guess_epsilon
+
 from scipy.spatial import distance
 
 import jax
@@ -28,15 +31,18 @@ class GaussianProcess:
     alphas: Optional[jnp.ndarray] = None  # Coefficients.
     points: jnp.ndarray
     cholesky_factor: jnp.ndarray
+    distance: Distance          # Distance metric to use
 
 
     def __init__(
-        self, sigma: Optional[float] = None, epsilon: Optional[float] = None
+        self, sigma: Optional[float] = None, epsilon: Optional[float] = None,
+        distance: Optional[Distance] = EuclideanDistance
     ) -> None:
         if sigma is not None:
             self.sigma = sigma
         if epsilon is not None:
             self.epsilon = epsilon
+        self.d = distance
 
     def _learn(
         self,
@@ -70,22 +76,16 @@ class GaussianProcess:
             arrays (arranged by rows).
 
         """
+        threshold = jnp.finfo(points.dtype).eps * 1e2
+        squared_distance_matrix = self.d._compute_squared_distance_matrix(points)
+        self.epsilon = guess_epsilon(squared_distance_matrix, self.epsilon, threshold=threshold)
+        print("EPSILON: ", self.epsilon)
 
-        distances2 = distance.pdist(points, metric='sqeuclidean')
+        kernel_matrix = jnp.exp(
+            -squared_distance_matrix / (2.0 * self.epsilon**2))
 
-        if self.epsilon is None:
-            threshold = jnp.finfo(points.dtype).eps * 1e2
-            if len(distances2[distances2 > threshold]) < 1:
-                threshold = threshold / 2
-            self.epsilon = jnp.sqrt(
-                jnp.median(distances2[distances2 > threshold])
-            )
-
-        kernel_matrix = distance.squareform(
-            jnp.exp(-distances2 / (2.0 * self.epsilon**2))
-        )
         diagonal_indices = jnp.diag_indices_from(kernel_matrix)
-        kernel_matrix[diagonal_indices] = 1.0
+        kernel_matrix = kernel_matrix.at[diagonal_indices].set(1.0)
         self.kernel_matrix = kernel_matrix
 
         self._learn(points, values, self.epsilon, self.kernel_matrix)
@@ -109,10 +109,13 @@ class GaussianProcess:
             Estimated value of the GP at the given point.
 
         """
-        kstar = jnp.exp(
-            -jnp.sum((point - self.points) ** 2, axis=1)
-            / (2.0 * self.epsilon**2)
-        )
+        d2 = self.d._squared_distance
+        def kernel(x):
+            return jnp.exp(-d2(x, point) / (2.0 * self.epsilon**2))
+
+        kstar = jax.vmap(kernel)(self.points)
+
+        # print("LOOK: ", kstar.shape)
         return kstar @ self.alphas
 
     @partial(jax.jit, static_argnums=0)
@@ -130,21 +133,31 @@ class GaussianProcess:
         value: jnp.ndarray
             Estimated value of the GP variance at the given point.
         """
-        kstar = jnp.exp(
-            -jnp.sum((point - self.points)**2, axis=1)
-            / (2.0 * self.epsilon**2))
+        d2 = self.d._squared_distance
+        def kernel(x):
+            return jnp.exp(-d2(x, point) / (2.0 * self.epsilon**2))
+
+        kstar = jax.vmap(kernel)(self.points)
 
         betas = jax.scipy.linalg.cho_solve((self.cholesky_factor, True),
                                            kstar, check_finite=False)
         return 1 - kstar @ betas
 
+    def save_gpr(self, path_to_folder):
+        """Saves out necessary information to evaluate gpr as numpy arrays. 
+        Can be used to transfer gpr between platforms.
+        """
+        np.save(f"{path_to_folder}/epsilon.npy", np.asarray(self.epsilon))
+        np.save(f"{path_to_folder}/sample_points.npy", np.asarray(self.points))
+        np.save(f"{path_to_folder}/alphas.npy", np.asarray(self.alphas))
+
 
 def make_gaussian_process(
-    X: jnp.ndarray, Y: jnp.ndarray, /, epsilon=None, sigma=None
+    X: jnp.ndarray, Y: jnp.ndarray, /, epsilon=None, sigma=None, distance=EuclideanDistance
 ) -> GaussianProcess:
     """Return Gaussian process regressor for given data and labels."""
     X, Y = jnp.atleast_2d(X), jnp.atleast_2d(Y)
     assert X.shape[0] == Y.shape[0]
-    f = GaussianProcess(epsilon=epsilon, sigma=sigma)
+    f = GaussianProcess(epsilon=epsilon, sigma=sigma, distance=distance)
     f.learn(X, Y)
     return f

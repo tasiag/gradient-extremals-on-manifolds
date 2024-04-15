@@ -29,11 +29,11 @@ from gradient_extremals_on_manifolds.DiffusionMapCoordinates import DiffusionMap
 from gradient_extremals_on_manifolds.gaussian_process import make_gaussian_process
 from gradient_extremals_on_manifolds.Sampler import Sampler
 
-
+print("I started.")
 # Options (True or False)
 DEFAULT_VERBOSE = True # False for INFO only, True for DEBUG
 DEFAULT_PLOT = True
-DEFAULT_SHOWPLOT = False
+DEFAULT_SHOWPLOT = True
 DEFAULT_SAVE = True
 
 # Problem-specific parameters to set
@@ -62,6 +62,7 @@ key = None
 path_3D = None
 initial_3D = fixed_points[0]
 
+print("Setting up logger.")
 logger = setup_log("sphericalMB_sampling", DEFAULT_VERBOSE)
 
 for i in range(DEFAULT_ITERATIONS):
@@ -72,14 +73,19 @@ for i in range(DEFAULT_ITERATIONS):
     else:
         _, key = jax.random.split(key)
 
+    print("drawing samples.")
     sampler = Sampler(mb.E, lambda x: x[0]**2+x[1]**2+x[2]**2 - 1, noise_level=0.05)
     final_3D = sampler.draw_samples(initial_3D, DEFAULT_SAMPLE_SIZE, key = key)
+    #final_3D_formatted = final_3D.reshape((DEFAULT_SAMPLE_SIZE, 1, 3))
+    #print("FINAL_3D_formatted.SHAPE :", final_3D_formatted.shape)
+    #input()
 
     logger.debug(f"3d shape: {final_3D.shape}")
     logger.debug(f"Are there nan's? {jnp.any(jnp.isnan(final_3D))}")
     logger.debug(f" or None's in final_3D? ({any(None in sub for sub in final_3D)}) ")
 
     if DEFAULT_PLOT:
+        print("plotting.")
         plot_spherical_potential(mb.E)
         plot_points3d(fixed_points[[0,2,4],:], s=[ 1 for i in range(len(fixed_points[[0,2,4],:]))],
                       color = (1.0, 1.0, 0.0), mode="sphere", scale_factor=0.05)
@@ -97,8 +103,11 @@ for i in range(DEFAULT_ITERATIONS):
     ambient_dim = final_3D.shape[1]
 
     # learn pushforward
+    print("Diffusion maps.")
     phi = DiffusionMapCoordinates(ambient_dim, 2) # dimension of manifold set
-    final_2D = phi.learn(final_3D)
+    print(final_3D.shape)
+    final_2D = phi.learn(final_3D) #final_3D)
+
     logger.debug(f"Are there nan's? {jnp.any(jnp.isnan(final_2D))}")
     logger.debug(f" or None's in final_2D? ({any(None in sub for sub in final_2D)}) ")
 
@@ -118,7 +127,9 @@ for i in range(DEFAULT_ITERATIONS):
     learned_potential_func = make_gaussian_process(final_2D, energies)
     learned_potential = DiffGeom_Potential(learned_potential_func, phi, psi)
 
-    initial = phi(initial_3D) 
+    initial = phi(initial_3D)
+    print(initial_3D) 
+    print("initial ", initial)
     lam, vec = jnp.linalg.eigh(learned_potential.hess(initial))
     lam = lam[0]
     if i == 0: 
@@ -135,6 +146,7 @@ for i in range(DEFAULT_ITERATIONS):
     if i > DEFAULT_MINCHARTSEXPECTED and jnp.linalg.norm(jax.jacobian(mb.E)(initial_3D)) < DEFAULT_THRESHOLD_SHRINKSTEPSIZE: 
         h = 2.5
 
+    print("deciding which direction.")
     # small test continuation to decide which direction to continue 
     if i>0:
         tester = Continuation(initial_point=jnp.array([initial[0], initial[1],
@@ -203,6 +215,9 @@ for i in range(DEFAULT_ITERATIONS):
     logger.debug(f"step size: {h}")
 
     # run gradient extremals
+    print("running gradient extremals.")
+    print(learned_potential.potential(initial))
+    print("again")
     try:
         gradient_extremal = Continuation(initial_point=jnp.array([initial[0], initial[1],
                                                                   lam,
@@ -220,10 +235,12 @@ for i in range(DEFAULT_ITERATIONS):
         # max_cond = lambda x:learned_potential.potential_func.get_variance(x[0:2]) > 2E-6 (alternate)
 
         gradient_extremal.start()
-    except:
+    except Exception as e:
         logger.warning("SphericalMB_Sampling | Continuation failed.")
+        print(Exception)
 
     gradient_extremal_points = gradient_extremal.getPoints()
+    print("completed gradient extremals.")
 
     if DEFAULT_PLOT:
         learned_potential.plot_color_mesh(colorbarTitle=r'$Z=\psi^\star E$', contour=True, contourCount=20)
